@@ -16,6 +16,14 @@ using VersionVector = std::unordered_map<NodeID, uint64_t>;
 static const Name kSyncNotifyPrefix = Name("/ndn/svs/syncNotify");
 static const Name kSyncDataPrefix = Name("/ndn/svs/vsyncData");
 
+//structure for encoding missing data info, e.g. /A/4-7
+struct MissingDataInfo
+{
+  ndn::Name prefix;
+  uint64_t lowSeq;
+  uint64_t highSeq;
+};
+
 typedef struct Packet_ {
   std::shared_ptr<const Interest> interest;
   std::shared_ptr<const Data> data;
