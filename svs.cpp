@@ -393,7 +393,7 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
       // Merge local vector
       m_vv[nid_other] = seq_other;
       //test missingNames vector info(LTX)
-      for (int i=0;i<missingNames.size;i++){
+      for (int i=0;i<missingNames.size();i++){
         printf(missingNames[i].toUri);
       }
 
