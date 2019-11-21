@@ -369,8 +369,8 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
     auto it = m_vv.find(nid_other);
 
     if (it == m_vv.end() || it->second < seq_other) {
-      printf("Debug: m_vv->first:" + it->first);
-      printf("Debug: m_vv->second:" + it->second);
+      //printf("Debug: m_vv->first:" + it->first);
+      //printf("Debug: m_vv->second:" + it->second);
 
       other_vector_new = true;
       // Detect new data
