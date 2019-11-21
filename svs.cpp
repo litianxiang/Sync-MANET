@@ -394,7 +394,7 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
       m_vv[nid_other] = seq_other;
       //test missingNames vector info(LTX)
       for (int i=0;i<missingNames.size();i++){
-        printf(missingNames[i].toUri());
+        printf(missingNames.at(i).toUri().c_str());
       }
 
     }
