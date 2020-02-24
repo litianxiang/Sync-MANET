@@ -36,7 +36,7 @@ void SVS::registerPrefix() {
 /**
  * publishMsg() - Public method called by application to send new msg to the
  *  sync layer. The sync layer will keep a copy. (c2s API)
- * TODO: this should be any typed data
+ * TODO: this should be any typed data, not just string for chat app
  */
 void SVS::publishMsg(const std::string &msg) {
   printf(">> %s\n\n", msg.c_str());
@@ -60,6 +60,15 @@ void SVS::publishMsg(const std::string &msg) {
   m_data_store[n] = data;
 
   sendSyncInterest();
+}
+
+/**
+ * doUpdate() - Public method called by application when new data is generated,
+ * update seq number under current node id in State Vector. 
+ */
+void SVS::doUpdate() {
+    m_vv[m_id]++;
+    sendSyncInterest();
 }
 
 /**
@@ -167,7 +176,7 @@ void SVS::onSyncInterest(const Interest &interest) {
 
   // printf("Received sync interest from node %llu: %s\n", nid_other,
   //        ExtractEncodedVV(n).c_str());
-  fflush(stdout);
+  fflush(stdout);  
 
   // Merge state vector
   bool my_vector_new, other_vector_new;
@@ -198,8 +207,8 @@ void SVS::onSyncInterest(const Interest &interest) {
     retx_event = m_scheduler.scheduleEvent(time::microseconds(delay),
                                            [this] { retxSyncInterest(); });
   } else if (other_vector_new) {
-    // printf("Send next sync interest immediately\n");
-    // TODO: onMsg send updates to application
+    //printf("Send next sync interest immediately\n");
+
     fflush(stdout);
     m_scheduler.cancelEvent(retx_event);
     retxSyncInterest();
@@ -264,8 +273,10 @@ void SVS::onDataReply(const Data &data) {
   size_t data_size = data.getContent().value_size();
   std::string content_str((char *)data.getContent().value(), data_size);
   content_str = boost::lexical_cast<std::string>(nid_other) + ":" + content_str;
-  //TODO: update using vector of new data names
-  onMsg(content_str);
+  //LTX: this was used to send received msg data to chat app
+  //onMsg(content_str);
+
+  //
 }
 
 /**
@@ -357,7 +368,7 @@ void SVS::sendSyncACK(const Name &n) {
  */
 std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
   bool my_vector_new = false, other_vector_new = false;
-  //vector containing a list of missing data info (LTX)
+  //LTX: vector containing a list of missing data info
   std::vector<MissingDataInfo> updates;
   std::vector<Name> missingNames;
 
@@ -369,19 +380,16 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
     auto it = m_vv.find(nid_other);
 
     if (it == m_vv.end() || it->second < seq_other) {
-      printf("Debug: m_vv->first:" + it->first);
-      printf("Debug: m_vv->second:" + it->second);
 
       other_vector_new = true;
+
       // Detect new data
       auto start_seq =
           m_vv.find(nid_other) == m_vv.end() ? 1 : m_vv[nid_other] + 1;
       for (auto seq = start_seq; seq <= seq_other; ++seq) {
         auto n = MakeDataName(nid_other, seq);
         //add data to missing data queue
-        //TODO: add data to missing data vector(LTX)
         missingNames.push_back(n);
-        
         
         Packet packet;
         packet.packet_type = Packet::INTEREST_TYPE;
@@ -389,13 +397,20 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
             std::make_shared<Interest>(n, time::milliseconds(1000));
         pending_data_interest.push_back(std::make_shared<Packet>(packet));
       }
-
+      //LTX: update MissingDataInfo vector
+      updates.push_back(MissingDataInfo{nid_other,start_seq,seq_other});
+      // printf("nid_other: %llu\n",nid_other);
+      // printf("start_seq: %llu\n", start_seq);
+      // printf("seq_other: %llu\n", seq_other);
+      //callback to send updates to application layer
+      processSyncUpdate(updates);
+ 
       // Merge local vector
       m_vv[nid_other] = seq_other;
       //test missingNames vector info(LTX)
-      for (int i=0;i<missingNames.size;i++){
-        printf(missingNames[i].toUri);
-      }
+      // for (int i=0;i<missingNames.size();i++){
+      //   std::cout << "missing data name vector: " << missingNames.at(i).toUri();
+      // }
 
     }
   }

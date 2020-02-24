@@ -30,7 +30,7 @@ class Program {
   explicit Program(const Options &options)
       : m_options(options),
         m_svs(m_options.m_id,
-              std::bind(&Program::onMsg, this, std::placeholders::_1)) {
+              std::bind(&Program::processSyncUpdate, this, std::placeholders::_1)) {
     printf("SVS client %llu starts\n", m_options.m_id);
 
     // Suppress warning
@@ -47,6 +47,8 @@ class Program {
                            boost::lexical_cast<std::string>(m_options.m_id) +
                            " has joined the groupchat";
     m_svs.publishMsg(init_msg);
+    //TODO: application is not suppose to send msg to sync layer, only need to notify sync layer that new data has been generated using doUpdate()
+    //m_svs.doUpdate();
 
     std::string userInput = "";
 
@@ -62,20 +64,31 @@ class Program {
  private:
   /**
    * onMsg() - Callback on receiving msg from sync layer.
+   * processSyncUpdate() - Receive vector of updates
    */
-  void onMsg(const std::string &msg) {
-    // Parse received msg
-    std::vector<std::string> result;
-    size_t cursor = msg.find(":");
-    result.push_back(msg.substr(0, cursor));
-    if (cursor < msg.length() - 1)
-      result.push_back(msg.substr(cursor + 1));
-    else
-      result.push_back("");
 
-    // Print to stdout
-    printf("User %s>> %s\n\n", result[0].c_str(), result[1].c_str());
+  void processSyncUpdate(const std::vector<MissingDataInfo>& updates){
+    for (const auto& update : updates){
+      for (uint64_t i = update.lowSeq; i <= update.highSeq; i++){
+        //print out updated node id/seq numbers
+        std::cout << "\n Update:" << update.nodeID << "/" << i << std::endl;
+      }
+    }
   }
+
+  // void onMsg(const std::string &msg) {
+  //   // Parse received msg
+  //   std::vector<std::string> result;
+  //   size_t cursor = msg.find(":");
+  //   result.push_back(msg.substr(0, cursor));
+  //   if (cursor < msg.length() - 1)
+  //     result.push_back(msg.substr(cursor + 1));
+  //   else
+  //     result.push_back("");
+
+  //   // Print to stdout
+  //   printf("User %s>> %s\n\n", result[0].c_str(), result[1].c_str());
+  // }
 
 
   const Options m_options;
