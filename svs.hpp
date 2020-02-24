@@ -15,8 +15,17 @@ namespace svs {
 
 class SVS {
  public:
-  SVS(NodeID id, std::function<void(const std::string &)> onMsg_)
-      : onMsg(onMsg_),
+//   SVS(NodeID id, std::function<void(const std::string &)> onMsg_)
+//       : onMsg(onMsg_),
+//         m_id(id),
+//         m_scheduler(m_face.getIoService()),
+//         rengine_(rdevice_()) {
+//     // Bootstrap with knowledge of itself only
+//     m_vv[id] = 0;
+//   }
+
+  SVS(NodeID id, std::function<void(const std::vector<MissingDataInfo> &)> processSyncUpdate_)
+      : processSyncUpdate(processSyncUpdate_),
         m_id(id),
         m_scheduler(m_face.getIoService()),
         rengine_(rdevice_()) {
@@ -29,6 +38,8 @@ class SVS {
   void registerPrefix();
 
   void publishMsg(const std::string &msg);
+
+  void doUpdate();
 
  private:
   void asyncSendPacket();
@@ -53,7 +64,9 @@ class SVS {
 
   std::pair<bool, bool> mergeStateVector(const VersionVector &vv_other);
 
-  std::function<void(const std::string &)> onMsg;
+//   std::function<void(const std::string &)> onMsg;
+
+     std::function<void(const std::vector<MissingDataInfo> &)> processSyncUpdate;
 
   // Members
   NodeID m_id;

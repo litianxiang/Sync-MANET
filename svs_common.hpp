@@ -19,7 +19,7 @@ static const Name kSyncDataPrefix = Name("/ndn/svs/vsyncData");
 //structure for encoding missing data info, e.g. /A/4-7
 struct MissingDataInfo
 {
-  ndn::Name prefix;
+  ndn::svs::NodeID nodeID;
   uint64_t lowSeq;
   uint64_t highSeq;
 };
