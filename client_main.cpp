@@ -7,6 +7,7 @@
 #include <iostream>
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/name.hpp>
+#include <ndn-cxx/util/scheduler.hpp>
 #include <string>
 #include <thread>
 #include <vector>
@@ -46,26 +47,38 @@ class Program {
     std::string init_msg = "User " +
                            boost::lexical_cast<std::string>(m_options.m_id) +
                            " has joined the groupchat";
-    m_svs.publishMsg(init_msg);
+    //m_svs.publishMsg(init_msg);
+    m_svs.doUpdate();
     //TODO: application is not suppose to send msg to sync layer, only need to notify sync layer that new data has been generated using doUpdate()
     //m_svs.doUpdate();
 
     std::string userInput = "";
 
+
     while (true) {
       // send to Sync
       std::getline(std::cin, userInput);
-      m_svs.publishMsg(userInput);
+      //m_svs.publishMsg(userInput);
+      std::cout << "\n Message content: " << userInput << "/" << std::endl;
+      m_svs.doUpdate();
+      
     }
 
     thread_svs.join();
   }
+
 
  private:
   /**
    * onMsg() - Callback on receiving msg from sync layer.
    * processSyncUpdate() - Receive vector of updates
    */
+
+  Face m_face;
+  KeyChain m_keyChain;
+  Scheduler m_scheduler;  // Use io_service from face
+  std::unordered_map<Name, std::shared_ptr<const Data>> m_data_store;
+  std::uint16_t seq_no = 0;  //initialize seq number for generating data name, this is current consistent with sync layer seq no. TODO: need to support arbitray data name  
 
   void processSyncUpdate(const std::vector<MissingDataInfo>& updates){
     for (const auto& update : updates){
@@ -74,6 +87,30 @@ class Program {
         std::cout << "\n Update:" << update.nodeID << "/" << i << std::endl;
       }
     }
+  }
+
+  void publishMsg(const std::string &msg)
+  {
+    printf(">> %s\n\n", msg.c_str());
+    fflush(stdout);
+
+    // Set data name
+    auto n = MakeDataName(m_options.m_id, ++seq_no);
+    std::shared_ptr<Data> data = std::make_shared<Data>(n);
+
+    // Set data content
+    Buffer contentBuf;
+    for (size_t i = 0; i < msg.length(); ++i)
+      contentBuf.push_back((uint8_t)msg[i]);
+    data->setContent(contentBuf.get<uint8_t>(), contentBuf.size());
+    m_keyChain.sign(
+        *data, security::SigningInfo(security::SigningInfo::SIGNER_TYPE_SHA256));
+    data->setFreshnessPeriod(time::milliseconds(1000));
+
+    m_data_store[n] = data;
+
+    m_svs.doUpdate();
+
   }
 
   // void onMsg(const std::string &msg) {

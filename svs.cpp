@@ -17,7 +17,8 @@ void SVS::run() {
   retxSyncInterest();
 
   // Start periodically send packets asynchronously
-  asyncSendPacket();
+  //asyncSendPacket();
+  asyncSendSyncPacket();
 
   // Enter event loop
   m_face.processEvents();
@@ -75,6 +76,58 @@ void SVS::doUpdate() {
  * asyncSendPacket() - Send one pending packet with highest priority. Schedule
  *  sending next packet with random delay.
  */
+
+void SVS::asyncSendSyncPacket(){
+  Name n;
+  std::shared_ptr<Packet> packet;
+  pending_sync_interest_mutex.lock();
+  if(pending_ack.size()>0){
+    packet = pending_ack.front();
+    pending_ack.pop_front();
+  }else if(pending_sync_interest.size()>0){
+    packet = pending_sync_interest.front();
+    pending_sync_interest.pop_front();
+  }
+  pending_sync_interest_mutex.unlock();
+
+  if(packet != nullptr){
+    switch (packet->packet_type){
+      case Packet::INTEREST_TYPE:
+      n = packet->interest->getName();
+
+      if (n.compare(0, 3, kSyncNotifyPrefix) == 0){
+        m_face.expressInterest(*packet->interest,
+                                 std::bind(&SVS::onSyncAck, this, _2),
+                                 std::bind(&SVS::onNack, this, _1, _2),
+                                 std::bind(&SVS::onTimeout, this, _1));
+        fflush(stdout);
+      }else{
+        std::cout << "Invalid name: " << n << std::endl;
+      }
+
+      break;
+
+      case Packet::DATA_TYPE:
+      n = packet->data->getName();
+
+      if (n.compare(0, 3, kSyncNotifyPrefix) == 0) {
+        m_face.put(*packet->data);
+      }else{
+        assert(0);
+      }
+
+      break;
+    
+    default:
+     assert(0);
+    }
+  }
+  int delay = packet_dist(rengine_);
+  m_scheduler.cancelEvent(packet_event);
+  packet_event = m_scheduler.scheduleEvent(time::microseconds(delay),
+                                           [this] { asyncSendSyncPacket(); });
+}
+
 void SVS::asyncSendPacket() {
   // Decouple packet selection and packet sending
   Name n;
@@ -174,8 +227,8 @@ void SVS::onSyncInterest(const Interest &interest) {
 
   if (nid_other == m_id) return;
 
-  // printf("Received sync interest from node %llu: %s\n", nid_other,
-  //        ExtractEncodedVV(n).c_str());
+  printf("Received sync interest from node %llu: %s\n", nid_other,
+         ExtractEncodedVV(n).c_str());
   fflush(stdout);  
 
   // Merge state vector
@@ -246,7 +299,7 @@ void SVS::onSyncAck(const Data &data) {
   std::set<NodeID> interested_nodes;
   size_t data_size = data.getContent().value_size();
   std::string content_str((char *)data.getContent().value(), data_size);
-  // printf("Receive ACK: %s\n", content_str.c_str());
+  printf("Receive Sync ACK: %s\n", content_str.c_str());
   fflush(stdout);
   std::tie(vv_other, interested_nodes) =
       DecodeVVFromNameWithInterest(content_str);
@@ -283,15 +336,15 @@ void SVS::onDataReply(const Data &data) {
  * onNack() - Print error msg from NFD.
  */
 void SVS::onNack(const Interest &interest, const lp::Nack &nack) {
-  // std::cout << "received Nack with reason "
-  //           << " for interest " << interest << std::endl;
+  std::cout << "received Nack with reason "
+            << " for interest " << interest << std::endl;
 }
 
 /**
  * onTimeout() - Print timeout msg.
  */
 void SVS::onTimeout(const Interest &interest) {
-  // std::cout << "Timeout " << interest << std::endl;
+  std::cout << "Timeout " << interest << std::endl;
 }
 
 /**
@@ -358,6 +411,7 @@ void SVS::sendSyncACK(const Name &n) {
   Packet packet;
   packet.packet_type = Packet::DATA_TYPE;
   packet.data = data;
+
   pending_ack.push_back(std::make_shared<Packet>(packet));
 }
 
@@ -391,26 +445,19 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
         //add data to missing data queue
         missingNames.push_back(n);
         
-        Packet packet;
-        packet.packet_type = Packet::INTEREST_TYPE;
-        packet.interest =
-            std::make_shared<Interest>(n, time::milliseconds(1000));
-        pending_data_interest.push_back(std::make_shared<Packet>(packet));
+        // Packet packet;
+        // packet.packet_type = Packet::INTEREST_TYPE;
+        // packet.interest =
+        //     std::make_shared<Interest>(n, time::milliseconds(1000));
+        // pending_data_interest.push_back(std::make_shared<Packet>(packet));
       }
       //LTX: update MissingDataInfo vector
       updates.push_back(MissingDataInfo{nid_other,start_seq,seq_other});
-      // printf("nid_other: %llu\n",nid_other);
-      // printf("start_seq: %llu\n", start_seq);
-      // printf("seq_other: %llu\n", seq_other);
       //callback to send updates to application layer
       processSyncUpdate(updates);
  
       // Merge local vector
       m_vv[nid_other] = seq_other;
-      //test missingNames vector info(LTX)
-      // for (int i=0;i<missingNames.size();i++){
-      //   std::cout << "missing data name vector: " << missingNames.at(i).toUri();
-      // }
 
     }
   }

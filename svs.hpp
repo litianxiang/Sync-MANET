@@ -62,6 +62,8 @@ class SVS {
 
   void sendSyncACK(const Name &n);
 
+  void asyncSendSyncPacket();
+
   std::pair<bool, bool> mergeStateVector(const VersionVector &vv_other);
 
 //   std::function<void(const std::string &)> onMsg;
@@ -77,6 +79,7 @@ class SVS {
   std::unordered_map<Name, std::shared_ptr<const Data>> m_data_store;
 
   // Mult-level queues
+  std::deque<std::shared_ptr<Packet>> pending_packet;
   std::deque<std::shared_ptr<Packet>> pending_ack;
   std::deque<std::shared_ptr<Packet>> pending_sync_interest;
   std::deque<std::shared_ptr<Packet>> pending_data_reply;
