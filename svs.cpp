@@ -227,8 +227,8 @@ void SVS::onSyncInterest(const Interest &interest) {
 
   if (nid_other == m_id) return;
 
-  printf("Received sync interest from node %llu: %s\n", nid_other,
-         ExtractEncodedVV(n).c_str());
+  // printf("Received sync interest from node %llu: %s\n", nid_other,
+  //        ExtractEncodedVV(n).c_str());
   fflush(stdout);  
 
   // Merge state vector
@@ -299,7 +299,7 @@ void SVS::onSyncAck(const Data &data) {
   std::set<NodeID> interested_nodes;
   size_t data_size = data.getContent().value_size();
   std::string content_str((char *)data.getContent().value(), data_size);
-  printf("Receive Sync ACK: %s\n", content_str.c_str());
+  //printf("Receive Sync ACK: %s\n", content_str.c_str());
   fflush(stdout);
   std::tie(vv_other, interested_nodes) =
       DecodeVVFromNameWithInterest(content_str);
@@ -336,15 +336,15 @@ void SVS::onDataReply(const Data &data) {
  * onNack() - Print error msg from NFD.
  */
 void SVS::onNack(const Interest &interest, const lp::Nack &nack) {
-  std::cout << "received Nack with reason "
-            << " for interest " << interest << std::endl;
+  // std::cout << "received Nack with reason "
+  //           << " for interest " << interest << std::endl;
 }
 
 /**
  * onTimeout() - Print timeout msg.
  */
 void SVS::onTimeout(const Interest &interest) {
-  std::cout << "Timeout " << interest << std::endl;
+  //std::cout << "Timeout " << interest << std::endl;
 }
 
 /**
@@ -441,15 +441,17 @@ std::pair<bool, bool> SVS::mergeStateVector(const VersionVector &vv_other) {
       auto start_seq =
           m_vv.find(nid_other) == m_vv.end() ? 1 : m_vv[nid_other] + 1;
       for (auto seq = start_seq; seq <= seq_other; ++seq) {
-        auto n = MakeDataName(nid_other, seq);
+
+        auto n = MakeDataName(nid_other,seq);
+
         //add data to missing data queue
         missingNames.push_back(n);
         
-        // Packet packet;
-        // packet.packet_type = Packet::INTEREST_TYPE;
-        // packet.interest =
-        //     std::make_shared<Interest>(n, time::milliseconds(1000));
-        // pending_data_interest.push_back(std::make_shared<Packet>(packet));
+        Packet packet;
+        packet.packet_type = Packet::INTEREST_TYPE;
+        packet.interest =
+            std::make_shared<Interest>(n, time::milliseconds(1000));
+        pending_data_interest.push_back(std::make_shared<Packet>(packet));
       }
       //LTX: update MissingDataInfo vector
       updates.push_back(MissingDataInfo{nid_other,start_seq,seq_other});

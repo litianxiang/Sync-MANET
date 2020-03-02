@@ -62,6 +62,7 @@ inline Name MakeSyncNotifyName(const NodeID &nid, std::string encoded_vv,
   return n;
 }
 
+//TODO: should be part of application
 inline Name MakeDataName(const NodeID &nid, uint64_t seq) {
   // name = /[vsyncData_prefix]/[node_id]/[seq]/%0
   Name n(kSyncDataPrefix);
