@@ -208,7 +208,7 @@ class Program {
         
         printf("debug: 1");
 
-        std::shared_ptr<Packet> packet;
+        std::shared_ptr<Packet> packet = std::make_shared<Packet>();
         packet->packet_type = Packet::INTEREST_TYPE;
         packet->interest =
         std::make_shared<Interest>(n, time::milliseconds(1000));
