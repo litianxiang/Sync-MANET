@@ -39,9 +39,12 @@ class Program {
     // Suppress warning
     Interest::setDefaultCanBePrefix(true);
   }
-
+public:
   void run() {
     m_svs.registerPrefix();
+
+    m_face.setInterestFilter(InterestFilter(kSyncDataPrefix),
+                           bind(&Program::onDataInterest, this, _2), nullptr);
 
     // Create other thread to run
     std::thread thread_svs([this] { m_svs.run(); });
@@ -51,7 +54,8 @@ class Program {
                            " has joined the groupchat";
     //m_svs.publishMsg(init_msg);
     m_svs.doUpdate();
-    //TODO: application is not suppose to send msg to sync layer, only need to notify sync layer that new data has been generated using doUpdate()
+    //TODO: application is not suppose to send msg to sync layer, 
+    //only need to notify sync layer that new data has been generated using doUpdate()
     //m_svs.doUpdate();
     m_face.processEvents();
 
@@ -125,6 +129,8 @@ class Program {
   void onDataInterest(const Interest &interest) {
     const auto &n = interest.getName();
     auto iter = m_data_store.find(n);
+    printf("Received interest: %s\n", n.toUri().c_str());
+
 
     // If have data, reply. Otherwise forward with probability
     if (iter != m_data_store.end()) {
@@ -146,6 +152,7 @@ class Program {
    */
   void onDataReply(const Data &data){
     const auto &n = data.getName();
+    std::cout << "Debug: received data" << n << std::endl;
     NodeID nid_other = ExtractNodeID(n);
 
     // Drop duplicate data
@@ -216,6 +223,8 @@ class Program {
         n = packet->interest->getName();
 
         printf("debug: 2");
+        std::cout << "InterestName: " << n << std::endl;
+
 
         // Data Interest
         if (n.compare(0, 3, kSyncDataPrefix) == 0) {
@@ -232,6 +241,7 @@ class Program {
         printf("debug: 3");
 
         // pending_data_interest.push_back(std::make_shared<Packet>(packet));
+        m_face.processEvents();
         }
       }
     }
