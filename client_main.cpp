@@ -39,12 +39,11 @@ class Program {
     // Suppress warning
     Interest::setDefaultCanBePrefix(true);
   }
-public:
+
   void run() {
     m_svs.registerPrefix();
-
-    m_face.setInterestFilter(InterestFilter(kSyncDataPrefix),
-                           bind(&Program::onDataInterest, this, _2), nullptr);
+    // m_face.setInterestFilter(InterestFilter(kSyncDataPrefix),
+    //                       bind(&Program::onDataInterest, this, _2), nullptr);
 
     // Create other thread to run
     std::thread thread_svs([this] { m_svs.run(); });
@@ -52,11 +51,7 @@ public:
     std::string init_msg = "User " +
                            boost::lexical_cast<std::string>(m_options.m_id) +
                            " has joined the groupchat";
-    //m_svs.publishMsg(init_msg);
-    m_svs.doUpdate();
-    //TODO: application is not suppose to send msg to sync layer, 
-    //only need to notify sync layer that new data has been generated using doUpdate()
-    //m_svs.doUpdate();
+
     m_face.processEvents();
 
     std::string userInput = "";
@@ -65,9 +60,9 @@ public:
     while (true) {
       // send to Sync
       std::getline(std::cin, userInput);
-      //m_svs.publishMsg(userInput);
+      publishMsg(userInput);
       std::cout << "\n Message content sent: " << userInput << "/" << std::endl;
-      m_svs.doUpdate();
+      //m_svs.doUpdate();
       
     }
 
@@ -76,10 +71,6 @@ public:
 
 
  private:
-  /**
-   * processSyncUpdate() - Receive vector of updates
-   */
-
   Face m_face;
   KeyChain m_keyChain;
   Scheduler m_scheduler;  // Use io_service from face
@@ -100,14 +91,9 @@ public:
     printf(">> %s\n\n", msg.c_str());
     fflush(stdout);
 
-    printf("debug publishMsg 1");
-
     // Set data name
     auto n = GenerateDataName(m_options.m_id, ++seq_no);
     std::shared_ptr<Data> data = std::make_shared<Data>(n);
-
-        printf("debug publishMsg 2");
-
 
     // Set data content
     Buffer contentBuf;
@@ -131,7 +117,6 @@ public:
     auto iter = m_data_store.find(n);
     printf("Received interest: %s\n", n.toUri().c_str());
 
-
     // If have data, reply. Otherwise forward with probability
     if (iter != m_data_store.end()) {
       std::shared_ptr<Packet> packet;
@@ -152,7 +137,7 @@ public:
    */
   void onDataReply(const Data &data){
     const auto &n = data.getName();
-    std::cout << "Debug: received data" << n << std::endl;
+    std::cout << "Received data: " << n << std::endl;
     NodeID nid_other = ExtractNodeID(n);
 
     // Drop duplicate data
@@ -183,20 +168,6 @@ public:
     std::cout << "Timeout " << interest << std::endl;
   }
 
-  // void onMsg(const std::string &msg) {
-  //   // Parse received msg
-  //   std::vector<std::string> result;
-  //   size_t cursor = msg.find(":");
-  //   result.push_back(msg.substr(0, cursor));
-  //   if (cursor < msg.length() - 1)
-  //     result.push_back(msg.substr(cursor + 1));
-  //   else
-  //     result.push_back("");
-
-  //   // Print to stdout
-  //   printf("User %s>> %s\n\n", result[0].c_str(), result[1].c_str());
-  // }
-
   /**
    * processSyncUpdate() - Receive vector of updates, 
    * send data interest to fetch missing data
@@ -209,12 +180,8 @@ public:
         std::cout << "\n Received Sync Update:" << update.nodeID << "/" << i << std::endl;
         //Send Data Interest to fetch missing data
         
-        printf("debug: 0");
-
         auto n = GenerateDataName(update.nodeID,i); 
         
-        printf("debug: 1");
-
         std::shared_ptr<Packet> packet = std::make_shared<Packet>();
         packet->packet_type = Packet::INTEREST_TYPE;
         packet->interest =
@@ -222,9 +189,7 @@ public:
 
         n = packet->interest->getName();
 
-        printf("debug: 2");
         std::cout << "InterestName: " << n << std::endl;
-
 
         // Data Interest
         if (n.compare(0, 3, kSyncDataPrefix) == 0) {
@@ -238,10 +203,7 @@ public:
                                  std::bind(&Program::onNack, this, _1, _2),
                                  std::bind(&Program::onTimeout, this, _1));
 
-        printf("debug: 3");
-
         // pending_data_interest.push_back(std::make_shared<Packet>(packet));
-        m_face.processEvents();
         }
       }
     }
