@@ -120,8 +120,8 @@ void SVS::asyncSendSyncPacket(){
     }
   }
   int delay = packet_dist(rengine_);
-  m_scheduler.cancelEvent(packet_event);
-  packet_event = m_scheduler.scheduleEvent(time::microseconds(delay),
+  packet_event.cancel();
+  packet_event = m_scheduler.schedule(time::microseconds(delay),
                                            [this] { asyncSendSyncPacket(); });
 }
 
@@ -246,8 +246,8 @@ void SVS::onSyncInterest(const Interest &interest) {
     sendSyncACK(n);
   } else {
     int delay = packet_dist(rengine_);
-    m_scheduler.scheduleEvent(time::microseconds(delay),
-                              [this, n] { sendSyncACK(n); });
+    m_scheduler.schedule(time::microseconds(delay),
+                          [this, n] { sendSyncACK(n); });
   }
 
   // If incoming state identical to local vector, reset timer to delay sending next sync interest.
@@ -256,15 +256,15 @@ void SVS::onSyncInterest(const Interest &interest) {
   if (!my_vector_new && !other_vector_new) {
     // printf("Delay next sync interest\n");
     fflush(stdout);
-    m_scheduler.cancelEvent(retx_event);
+    retx_event.cancel();
     int delay = retx_dist(rengine_);
-    retx_event = m_scheduler.scheduleEvent(time::microseconds(delay),
-                                           [this] { retxSyncInterest(); });
+    retx_event = m_scheduler.schedule(time::microseconds(delay),
+                                      [this] { retxSyncInterest(); });
   } else if (other_vector_new) {
     //printf("Send next sync interest immediately\n");
 
     fflush(stdout);
-    m_scheduler.cancelEvent(retx_event);
+    retx_event.cancel();
     retxSyncInterest();
   } else {
     // Do nothing
@@ -354,8 +354,8 @@ void SVS::onTimeout(const Interest &interest) {
 void SVS::retxSyncInterest() {
   sendSyncInterest();
   int delay = retx_dist(rengine_);
-  retx_event = m_scheduler.scheduleEvent(time::microseconds(delay),
-                                         [this] { retxSyncInterest(); });
+  retx_event = m_scheduler.schedule(time::microseconds(delay),
+                                    [this] { retxSyncInterest(); });
 }
 
 /**
